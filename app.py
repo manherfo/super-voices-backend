@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, request
 from flask_cors import CORS, cross_origin
 from flask_sqlalchemy import SQLAlchemy
 from flask_marshmallow import Marshmallow
@@ -22,11 +22,11 @@ class Users(db.Model):
     last_name = db.Column(db.String(100), nullable=False)
     pwd = db.Column(db.String(100), nullable=False)
 
-    def __init__(self, email, name, pwd, last_name):
+    def __init__(self, email, name, last_name, pwd):
         self.email = email
         self.name = name
-        self.pwd = pwd
         self.last_name = last_name
+        self.pwd = pwd
 
 
 class Companies(db.Model):
@@ -63,7 +63,8 @@ class Contests(db.Model):
     company_id = db.Column(db.Integer, db.ForeignKey('companies.id'), nullable=False)
     email = db.Column(db.String(100), db.ForeignKey('users.email'), nullable=False)
 
-    def __init__(self, id, name, banner, contest_url, starting_date, ending_date, voice_preice_tag, script, company_id, email):
+    def __init__(self, id, name, banner, contest_url, starting_date, ending_date, voice_preice_tag, script, company_id,
+                 email):
         self.id = id
         self.name = name
         self.banner = banner
@@ -96,9 +97,64 @@ class Voices(db.Model):
 db.create_all()
 
 
-@app.route('/')
-def hello_world():
-    return 'Hey, we have Flask in a Docker container!'
+class UserSchema(ma.Schema):
+    class Meta:
+        fields = ('email', 'name', 'last_name', 'pwd')
+
+
+user_schema = UserSchema()
+users_schema = UserSchema(many=True)
+
+
+class CompanySchema(ma.Schema):
+    class Meta:
+        fields = ('id', 'name', 'admin_email')
+
+
+company_schema = CompanySchema()
+companies_schema = CompanySchema(many=True)
+
+
+class AccessLevelSchema(ma.Schema):
+    class Meta:
+        fields = ('email', 'access_level', 'company_id')
+
+
+access_level_schema = AccessLevelSchema()
+access_levels_schema = AccessLevelSchema(many=True)
+
+
+class ContestSchema(ma.Schema):
+    class Meta:
+        fields = ('id', 'name', 'banner', 'contest_url', 'starting_date', 'ending_date', 'voice_preice_tag', 'script',
+                  'company_id', 'email')
+
+
+contest_schema = ContestSchema()
+contests_schema = ContestSchema(many=True)
+
+
+class VoiceSchema(ma.Schema):
+    class Meta:
+        fields = ('id', 'voice_url', 'contest_id', 'status', 'email', 'created_at')
+
+
+voice_schema = ContestSchema()
+voices_schema = ContestSchema(many=True)
+
+
+@app.route('/signups', methods=['PUT'])
+def create_task():
+    new_email = request.json['email']
+    new_name = request.json['name']
+    new_last_name = request.json['last_name']
+    new_pwd = request.json['pwd']
+    new_user = Users(new_email, new_name, new_last_name, new_pwd)
+
+    db.session.add(new_user)
+    db.session.commit()
+
+    return user_schema.jsonify(new_user)
 
 
 if __name__ == '__main__':
